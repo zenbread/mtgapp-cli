@@ -57,7 +57,9 @@ class MTGA(cmd.Cmd):
         if args == 'clip':
             clip = pyperclip.paste()
             table = Card.make_table(price=False, search=True)
-            table.title = '\n'
+            table.title = 'Available to trade'
+            search_cards = []
+            wants_list = []
             for match in re.finditer(r'([0-9]+)\s(.*)', clip):
                 print(
                     f"\n[green]Looking for [blue]{match.group(2)}[/blue]...[/green]", # noqa
@@ -76,8 +78,10 @@ class MTGA(cmd.Cmd):
                     print(" [red]None[/red]", end="")
                     continue
                 index = 0
+                temp_table = Card.make_table(price=False, search=True)
+                table.title = '\n'
                 for card in cards:
-                    table.add_row(
+                    temp_table.add_row(
                         f'{match.group(2)}' if not index else '',
                         str(index + 1),
                         card.name, utils.get_color(card),
@@ -85,11 +89,46 @@ class MTGA(cmd.Cmd):
                         f'{card.amount} of {int(match.group(1))}'
                     )
                     index += 1
+                if temp_table.row_count > 1:
+                    while True:
+                        print(temp_table)
+                        try:
+                            choice = int(input("Which is the correct card? [Index Number | 0 to skip]> "))
+                            if choice == 0:
+                                break
+                            wants_list.append((match.group(2), match.group(1)))
+                            search_cards.append(cards[choice - 1])
+                            break
+                        except (IndexError, ValueError):
+                            self.console.log("Index out of range.\nSelecting None")
+                            continue
+                else:
+                    search_cards.append(cards[0])
+                    wants_list.append((match.group(2), match.group(1)))
+                
+            index = 0
+            for card in search_cards:
+                table.add_row(
+                f'{wants_list[index][0]}',
+                str(index + 1),
+                card.name, utils.get_color(card),
+                card.set, card.type, card.rarity,
+                f'{card.amount} of {wants_list[index][1]}'
+                )
+                index += 1
 
             if table.row_count:
                 print(table)
+                while True:
+                    choice = input("Add to hand? [y/N]> ")
+                    if choice.lower() in ['', 'n']:
+                        break
+                    elif choice.lower() == 'y':
+                        self.cards_in_hand += search_cards
+                        break
             print()
             return
+            # end of clip
         cards = utils.search(self.db_conn, self.user, args)
         table = Card.make_table(price=False)
         for index, card in enumerate(cards):

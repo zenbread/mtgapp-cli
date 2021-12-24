@@ -5,6 +5,7 @@ import CRUD
 import json
 import urllib3
 import datetime
+import os
 from card import Card
 from options import Options
 from user import User
@@ -66,7 +67,9 @@ def generate_api_query(cards: List[Card]) -> Dict:
 
 
 def get_prices(cards: List[Card]):
-
+    """
+        Get prices from scryfall
+    """
     chunk_size = 75
     chunk = 0
     while chunk < len(cards):
@@ -259,7 +262,6 @@ def update_database(
     CRUD.initialize_database(db)
     CRUD.update_new_database(db, old_filename)
     # Backup old database file
-    import os
     os.rename(
         old_filename,
         os.path.join(
@@ -268,7 +270,7 @@ def update_database(
             )
         )
     CRUD.close_db_connection(db)
+    # Change Name of new database file to default
     os.rename(new_filename, old_filename)
     db = CRUD.connect_with_database(old_filename)
-    # Change Name of new database file to default
     return db
