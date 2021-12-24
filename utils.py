@@ -1,11 +1,8 @@
 import re
 import csv
 import sqlite3
-
-from urllib3.exceptions import ResponseError
 import CRUD
 import json
-import requests
 import urllib3
 import datetime
 from card import Card
@@ -78,12 +75,22 @@ def get_prices(cards: List[Card]):
         data = json.dumps(data)
         url = 'https://api.scryfall.com/cards/collection'
         headers = {"Content-Type": "application/json"}
-        response = requests.post(url, headers=headers, data=data)
-        if response.status_code != 200:
+
+        http = urllib3.PoolManager()
+        try:
+            response = http.request(
+                "POST",
+                url,
+                headers=headers,
+                body=data
+            )
+        except urllib3.exceptions.MaxRetryError:
+            raise ConnectionError('Unable to Connect to MTGJSON.')
+        if response.status != 200:
             print("Bad request!!!")
             print(response.text)
             return
-        data = json.loads(response.text)
+        data = json.loads(response.data)
         if data['not_found']:
             print(f"Unable to locate: {data['not_found']}")
             pprint(data)
