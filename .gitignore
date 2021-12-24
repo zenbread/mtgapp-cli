@@ -1,0 +1,6 @@
+2021*
+__pycache__
+.extras
+venv*
+test.py
+*.csv
