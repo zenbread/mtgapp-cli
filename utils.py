@@ -240,9 +240,9 @@ def download_update() -> Path:
     with Progress() as progress:
         task = progress.add_task('Downloading database...', total=size)
         file = open(filename, 'wb')
-        for chunk in resp.stream(1024):
+        for chunk in resp.stream(8092):
             file.write(chunk)
-            progress.update(task, advance=1024)
+            progress.update(task, advance=8092)
 
         resp.release_conn()
         file.close()
@@ -266,7 +266,7 @@ def update_database(
         old_filename,
         os.path.join(
             old_filename.parent, 
-            str(datetime.datetime.now().date()) + 'backup.sqlite'
+            f"backup{datetime.datetime.now().strftime('%m-%d_%H-%M-%S')}.sqlite"
             )
         )
     CRUD.close_db_connection(db)

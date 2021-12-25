@@ -167,7 +167,7 @@ class MTGA(cmd.Cmd):
                         card.set, card.type, card.rarity,
                         f'{card.amount}'
                     )
-                    print(table)
+                print(table)
             else:
                 print("[yellow]No cards in hand currently.[/]")
 
