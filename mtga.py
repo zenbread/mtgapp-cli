@@ -17,6 +17,7 @@ from ast import literal_eval
 from rich import print
 from rich.console import Console
 from rich.pretty import pprint
+from typing import List
 
 
 class MTGA(cmd.Cmd):
@@ -26,6 +27,20 @@ class MTGA(cmd.Cmd):
     @classmethod
     def update_prompt(cls, user: User):
         cls.prompt = f'MTGA:{user.username.capitalize()}:>'
+
+    def fill_table(self, cards: List[Card], title: str):
+        index = 0
+        table = Card.make_table(title=title, price=False)
+        for card in cards:
+            table.add_row(
+            str(index + 1),
+            card.name, utils.get_color(card),
+            card.set, card.type, card.rarity,
+            f'{card.amount}'
+            )
+            index += 1
+        
+        return table
 
     def do_add(self, args):
         """Usage: add <csv | txt> <filename>"""
@@ -52,70 +67,60 @@ class MTGA(cmd.Cmd):
             print('[bold red]Didn\'t load:[/]')
             pprint(bad_cards)
 
+    def search_clip(self):
+        clip = pyperclip.paste()
+
+        search_cards = []
+        for match in re.finditer(r'([0-9]+)\s(.*)', clip):
+            print(
+                f"\n[green]Looking for [blue]{match.group(2)}[/blue]...[/green]", # noqa
+                end=""
+            )
+            card_name = match.group(2).replace("'", "''").rstrip()
+            cards = utils.search(self.db_conn, self.user, card_name)
+            if cards:
+                print(
+                    f" [bold green]Found {len(cards)}[/bold green]",
+                    end=""
+                )
+            else:
+                print(" [red]None[/red]", end="")
+                continue
+            index = 0
+            temp_table = Card.make_table(price=False, search=True)
+
+            for card in cards:
+                temp_table.add_row(
+                    f'{match.group(2)}' if not index else '',
+                    str(index + 1),
+                    card.name, utils.get_color(card),
+                    card.set, card.type, card.rarity,
+                    f'{card.amount} of {int(match.group(1))}'
+                )
+                index += 1
+            if temp_table.row_count > 1:
+                while True:
+                    print(temp_table)
+                    try:
+                        choice = int(input("Which is the correct card? [Index Number | 0 to skip]> "))
+                        if choice == 0:
+                            break
+                        search_cards.append(cards[choice - 1])
+                        break
+                    except (IndexError, ValueError):
+                        self.console.log("Index out of range.\nSelecting None")
+                        continue
+            else:
+                search_cards.append(cards[0])
+            
+        return search_cards
+
+
     def do_search(self, args):
         """Usage:  search clip\n\tsearch <title>"""
         if args == 'clip':
-            clip = pyperclip.paste()
-            table = Card.make_table(price=False, search=True)
-            table.title = 'Available to trade'
-            search_cards = []
-            wants_list = []
-            for match in re.finditer(r'([0-9]+)\s(.*)', clip):
-                print(
-                    f"\n[green]Looking for [blue]{match.group(2)}[/blue]...[/green]", # noqa
-                    end=""
-                )
-                card_name = match.group(2).replace("'", "''").rstrip()
-                cards = utils.search(
-                    self.db_conn, self.user, card_name
-                    )
-                if cards:
-                    print(
-                        f" [bold green]Found {len(cards)}[/bold green]",
-                        end=""
-                    )
-                else:
-                    print(" [red]None[/red]", end="")
-                    continue
-                index = 0
-                temp_table = Card.make_table(price=False, search=True)
-                table.title = '\n'
-                for card in cards:
-                    temp_table.add_row(
-                        f'{match.group(2)}' if not index else '',
-                        str(index + 1),
-                        card.name, utils.get_color(card),
-                        card.set, card.type, card.rarity,
-                        f'{card.amount} of {int(match.group(1))}'
-                    )
-                    index += 1
-                if temp_table.row_count > 1:
-                    while True:
-                        print(temp_table)
-                        try:
-                            choice = int(input("Which is the correct card? [Index Number | 0 to skip]> "))
-                            if choice == 0:
-                                break
-                            wants_list.append((match.group(2), match.group(1)))
-                            search_cards.append(cards[choice - 1])
-                            break
-                        except (IndexError, ValueError):
-                            self.console.log("Index out of range.\nSelecting None")
-                            continue
-                else:
-                    search_cards.append(cards[0])
-                    wants_list.append((match.group(2), match.group(1)))
-                
-            index = 0
-            for card in search_cards:
-                table.add_row(
-                f'{wants_list[index][0]}',
-                str(index + 1),
-                card.name, utils.get_color(card),
-                card.set, card.type, card.rarity,
-                f'{card.amount} of {wants_list[index][1]}'
-                )
-                index += 1
+            search_cards = self.search_clip()
+            table = self.fill_table(search_cards, "Search Results")
 
             if table.row_count:
                 print(table)
@@ -128,33 +133,25 @@ class MTGA(cmd.Cmd):
                         break
             print()
             return
-            # end of clip
-        cards = utils.search(self.db_conn, self.user, args)
-        table = Card.make_table(price=False)
-        for index, card in enumerate(cards):
-            table.add_row(
-                str(index + 1),
-                card.name, utils.get_color(card),
-                card.set, card.type, card.rarity,
-                f'{card.amount}'
-            )
-        if table.row_count:
-            print(table)
-            while True:
-                choice = input("Add to hand? [y/N]> ")
-                if choice.lower() in ['', 'n']:
+        else:
+            search_cards = utils.search(self.db_conn, self.user, args)
+            table = self.fill_table(search_cards, "Search Results")
+            if table.row_count:
+                while True:
+                    print(table)
+                    choice = input("Add to hand? [y/N]> ")
+                    if choice.lower() in ['', 'n']:
+                        break
+                    elif choice.lower() == 'y':
+                        index = 1
+                        if table.row_count > 1:
+                            try:
+                                index = int(input("Which one to hand? [Index Number]> "))
+                            except (IndexError, ValueError):
+                                self.console.log("Index out of range.")
+                                continue
+                    self.cards_in_hand.append(search_cards[index - 1])
                     break
-                elif choice.lower() == 'y':
-                    if table.row_count > 1:
-                        try:
-                            choice = int(input("Which one to hand? [Index Number]> "))
-                            self.cards_in_hand.append(cards[choice - 1])
-                        except (IndexError, ValueError):
-                            self.console.log("Index out of range.")
-                        break
-                    else:
-                        self.cards_in_hand.append(cards[0])
-                        break
 
     def do_cih(self, args):
         if not args or args == 'print':
@@ -340,3 +337,5 @@ if __name__ == "__main__":
         MTGA().cmdloop()
     except KeyboardInterrupt:
         raise SystemExit("\nExiting MTGApp...")
+
+
