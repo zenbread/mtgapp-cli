@@ -27,10 +27,8 @@ class Card:
         return f"<{self.__class__.__name__}({', '.join(items)})>"
 
     @classmethod
-    def make_table(self, title: str = 'Collection', price: bool = True, search: bool = False) -> Table:
+    def make_table(self, title: str = 'Collection', price: bool = True) -> Table:
         table = Table(title=title, box=box.MINIMAL_DOUBLE_HEAD)
-        if search:
-            table.add_column("Card Requested", justify='left', style='green')
         table.add_column("Index", justify='left', style='white')
         table.add_column("Card", justify='left', style='cyan')
         table.add_column("Color", justify='left', style='bright_yellow')

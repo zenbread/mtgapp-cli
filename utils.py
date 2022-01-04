@@ -11,10 +11,12 @@ from options import Options
 from user import User
 from typing import List
 from typing import Dict
+from rich import print
 from rich.pretty import pprint
 from rich.text import Text
 from rich.progress import Progress
 from pathlib import Path
+from search import Syntax, Query
 
 WORKING_DIR = Path(__file__).parent
 
@@ -24,6 +26,7 @@ colors = {
     'U': ('Blue', 'deep_sky_blue2'),
     'R': ('Red', 'bright_red'),
     'G': ('Green', 'spring_green3'),
+    'C': ('Colorless', 'bright_black'),
 }
 
 
@@ -31,16 +34,17 @@ def sql2cards(cards: List) -> List[Card]:
     """
         Turns sql query list into card list
         sqlite output:
-        c.name, c.rarity, c.originalType, c.setCode,
-            0      1             2             3
+        c.name, c.rarity, c.type, c.setCode,
+            0      1        2         3
         c.color, x.amount, x.card_uuidd, c.scryfallId
             4         5          6            7
     """
+    breakpoint()
     return [
         Card(
             card[0], card[5],
             type=card[2], rarity=card[1],
-            set=card[3], color=str(card[4]),
+            set=card[3], color=card[4] if card[4] else 'C',
             uuid=card[6], scry_id=card[7]
             )
         for card in cards
@@ -55,8 +59,20 @@ def get_color(card: Card) -> Text:
     return tmp
 
 
-def search(db: sqlite3.Connection, user: User, card_name: str) -> List[Card]:
-    cards = CRUD.get_cards(db, user, limit=10, search=card_name)
+def search(db: sqlite3.Connection, user: User, search: str, clip: bool = False) -> List[Card]:
+    if not clip:
+        s = Syntax(search)
+        try:
+            s.parse()
+            q = Query(s)
+            query = q.generate_query(user.id)
+        except SyntaxError as e:
+            print(f'[red]{e}[/]')
+            return []
+        print(query)
+        cards = CRUD.get_cards(db, user, query=query)
+    else:
+        cards = CRUD.get_cards(db, user, search=search)
     return sql2cards(cards)
 
 

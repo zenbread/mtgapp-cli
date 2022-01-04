@@ -7,6 +7,7 @@
 import cmd
 import pathlib
 import re
+from search import Query, Syntax
 from user import User
 from card import Card
 import utils
@@ -28,9 +29,9 @@ class MTGA(cmd.Cmd):
     def update_prompt(cls, user: User):
         cls.prompt = f'MTGA:{user.username.capitalize()}:>'
 
-    def fill_table(self, cards: List[Card], title: str):
+    def fill_table(self, cards: List[Card], title: str, price: bool = False):
         index = 0
-        table = Card.make_table(title=title, price=False)
+        table = Card.make_table(title=title, price=price)
         for card in cards:
             table.add_row(
             str(index + 1),
@@ -77,7 +78,7 @@ class MTGA(cmd.Cmd):
                 end=""
             )
             card_name = match.group(2).replace("'", "''").rstrip()
-            cards = utils.search(self.db_conn, self.user, card_name)
+            cards = utils.search(self.db_conn, self.user, card_name, clip=True)
             if cards:
                 print(
                     f" [bold green]Found {len(cards)}[/bold green]",
@@ -86,18 +87,7 @@ class MTGA(cmd.Cmd):
             else:
                 print(" [red]None[/red]", end="")
                 continue
-            index = 0
-            temp_table = Card.make_table(price=False, search=True)
-
-            for card in cards:
-                temp_table.add_row(
-                    f'{match.group(2)}' if not index else '',
-                    str(index + 1),
-                    card.name, utils.get_color(card),
-                    card.set, card.type, card.rarity,
-                    f'{card.amount} of {int(match.group(1))}'
-                )
-                index += 1
+            temp_table = self.fill_table(cards, "Found these:")
             if temp_table.row_count > 1:
                 while True:
                     print(temp_table)
@@ -108,7 +98,7 @@ class MTGA(cmd.Cmd):
                         search_cards.append(cards[choice - 1])
                         break
                     except (IndexError, ValueError):
-                        self.console.log("Index out of range.\nSelecting None")
+                        self.console.log("Index out of range.")
                         continue
             else:
                 search_cards.append(cards[0])
@@ -147,10 +137,12 @@ class MTGA(cmd.Cmd):
                         if table.row_count > 1:
                             try:
                                 index = int(input("Which one to hand? [Index Number]> "))
+                                self.cards_in_hand.append(search_cards[index - 1])
+                                break
                             except (IndexError, ValueError):
                                 self.console.log("Index out of range.")
                                 continue
-                    self.cards_in_hand.append(search_cards[index - 1])
+                        self.cards_in_hand.append(search_cards[index - 1])
                     break
 
     def do_cih(self, args):

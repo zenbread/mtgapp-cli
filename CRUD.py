@@ -130,29 +130,29 @@ def get_users(db: sqlite3.Connection) -> List[User]:
 def get_cards(
     db: sqlite3.Connection,
     user: User,
-    limit: int,
-    search: str = ""
+    search: str = '',
+    query: str = '',
 ) -> List:
     """
         Query dadtabase for user's cards.
     """
-    query = """
-    SELECT c.name, c.rarity, c.originalType, c.setCode, c.colors,
+    query_sql = """
+    SELECT c.name, c.rarity, c.type, c.setCode, c.colors,
     x.amount, x.card_uuid, c.scryfallId
     FROM user2card x
     JOIN cards c ON c.uuid = x.card_uuid
-    WHERE x.user_id = ?
-    {}
-    LIMIT ?;
+    WHERE x.user_id = {} AND
+    c.name LIKE \'{}\';
     """
 
     try:
-        if search:
-            query = query.format(f"AND c.name LIKE '%{search}%'")
+        if query:
+            query_sql = query
         else:
-            query = query.format(search)
+            query_sql = query_sql.format(user.id, search)
+            print(query_sql)
         with db:
-            curr = db.execute(query, (user.id, limit))
+            curr = db.execute(query_sql)
     except Exception as e:
         print(e, file=sys.stderr)
         traceback.print_exc()
