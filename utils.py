@@ -39,7 +39,6 @@ def sql2cards(cards: List) -> List[Card]:
         c.color, x.amount, x.card_uuidd, c.scryfallId
             4         5          6            7
     """
-    breakpoint()
     return [
         Card(
             card[0], card[5],

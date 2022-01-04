@@ -14,7 +14,7 @@ class Lexum:
 
 
 class Syntax:
-    text_codes_sql = ['n', 't', 'o', 'c']
+    text_codes_sql = ['n', 't', 'o', 'c', 's']
     operators = ['=', ':', '>', '>=', '<', '<=']
     colors = ['w', 'b', 'u', 'g', 'r']
     def __init__(self, request):
@@ -26,9 +26,9 @@ class Syntax:
             Parse search string to return lexums
         """
         lexums = []
-        amounts = [False, False, False, False]
+        amounts = [False] * len(Syntax.text_codes_sql)
         s = s.lower()
-        for match in re.finditer(r'([c|n|t|o])([:|>|>=|=|<|<=])((?:"[^"]*"|[^=\s])*)', s):
+        for match in re.finditer(r'([c|n|t|o|s])([:|>|>=|=|<|<=])((?:"[^"]*"|[^=\s])*)', s):
             cmd = match.group(1)
             if amounts[Syntax.text_codes_sql.index(cmd)]:
                 raise SyntaxError(f'\'{cmd}\' can only be used once.')
@@ -75,6 +75,7 @@ class Query:
         't' : 'type',
         'o' : 'text',
         'c' : 'colors',
+        's' : 'setCode'
     }
 
     operators = {

@@ -150,7 +150,6 @@ def get_cards(
             query_sql = query
         else:
             query_sql = query_sql.format(user.id, search)
-            print(query_sql)
         with db:
             curr = db.execute(query_sql)
     except Exception as e:
