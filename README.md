@@ -53,7 +53,7 @@ Will load cards and then update the list.
 
 ### Search
 You can search for cards by typing in the names (only names right now) and you can look for cards on your copy/paste clipboard. <br>
-`shell::> search <card name>` OR <br>
+`shell::> search name:<card name> or any other text comparison's from MTG Arena` OR <br>
 `shell::> search clip` <br>
 Format for clip:
 ```
