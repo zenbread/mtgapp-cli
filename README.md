@@ -28,7 +28,9 @@ Linux:
 ```
 source venv/bin/activate OR
 . venv/bin/activate
-
+```
+Requirements:
+```
 pip install -r requirements.txt
 ```
 ## Running
