@@ -1,4 +1,3 @@
-import collections
 import re
 from typing import List
 
@@ -8,7 +7,7 @@ class Lexum:
         self.cmd = cmd
         self.op = op
         self.value = value
-    
+
     def __repr__(self):
         return f'{self.cmd=},{self.op=},{self.value=}'
 
@@ -17,10 +16,11 @@ class Syntax:
     text_codes_sql = ['name', 't', 'o', 'c', 's']
     operators = ['=', ':', '>', '>=', '<', '<=']
     colors = ['w', 'b', 'u', 'g', 'r']
+
     def __init__(self, request):
         self.search_term = request
         self.lexums = None
-        
+
     def parse_syntax(self, s: str) -> List[Lexum]:
         """
             Parse search string to return lexums
@@ -37,7 +37,7 @@ class Syntax:
             for char in match.group(2):
                 if char in Syntax.operators:
                     operator += char
-            value = match.group(3).replace('"','')
+            value = match.group(3).replace('"', '')
             lexums.append(Lexum(cmd, operator, value))
         return lexums
 
@@ -49,7 +49,7 @@ class Syntax:
             return f'{lexum.cmd} not a valid search code.'
         if not lexum.op or not lexum.op in Syntax.operators:
             return f'{lexum.op} not a valid operation.'
-        
+
         if lexum.op[0] in ['<', '>']:
             if lexum.cmd != 'c':
                 return f'{lexum.value} not searchable with {lexum.cmd}.'
@@ -65,24 +65,24 @@ class Syntax:
             err = self.check_syntax(lex)
             if err:
                 raise SyntaxError(err)
-            
+
 
 class Query:
 
     text_codes_sql = {
         'name': 'name',
-        't' : 'type',
-        'o' : 'text',
-        'c' : 'colors',
-        's' : 'setCode'
+        't': 'type',
+        'o': 'text',
+        'c': 'colors',
+        's': 'setCode'
     }
 
     operators = {
-        '=' : '{0} LIKE \'%{1}%\'',
-        ':' : '{0} LIKE \'%{1}%\'',
-        '>' : '{0} LIKE \'%{1}%\'',
+        '=': '{0} LIKE \'%{1}%\'',
+        ':': '{0} LIKE \'%{1}%\'',
+        '>': '{0} LIKE \'%{1}%\'',
         '>=': '{0} LIKE \'%{1}%\'',
-        '<' : 'instr(manaCost, \'{{{0}}}\') == 0',
+        '<': 'instr(manaCost, \'{{{0}}}\') == 0',
         '<=': 'instr(manaCost, \'{{{0}}}\') == 0',
     }
 
@@ -101,15 +101,17 @@ class Query:
             u2c.amount, u2c.card_uuid, c.scryfallId FROM cards c
             INNER JOIN user2card as u2c
             ON u2c.card_uuid == c.uuid
-            WHERE u2c.user_id == {user_id} AND 
+            WHERE u2c.user_id == {user_id} AND
+            u2c.amount > 0 AND
         """
         for lexum in self.syntax.lexums:
             if lexum.cmd == 'c' and len(lexum.value) > 1:
                 for color in lexum.value:
-                    base_query += self._build_string(Lexum(lexum.cmd, lexum.op, color)) + ' AND '
+                    base_query += self._build_string(
+                        Lexum(lexum.cmd, lexum.op, color)) + ' AND '
             else:
                 base_query += self._build_string(lexum) + ' AND '
             if lexum.op == '>':
                 base_query += ' length(colors) > 1 AND '
-        
+
         return base_query.rstrip(' AND')

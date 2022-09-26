@@ -45,7 +45,7 @@ def sql2cards(cards: List) -> List[Card]:
             type=card[2], rarity=card[1],
             set=card[3], color=card[4] if card[4] else 'C',
             uuid=card[6], scry_id=card[7]
-            )
+        )
         for card in cards
     ]
 
@@ -68,11 +68,18 @@ def search(db: sqlite3.Connection, user: User, search: str, clip: bool = False) 
         except SyntaxError as e:
             print(f'[red]{e}[/]')
             return []
-        print(query)
         cards = CRUD.get_cards(db, user, query=query)
     else:
+        print(search)
         cards = CRUD.get_cards(db, user, search=search)
     return sql2cards(cards)
+
+
+def remove_cards(db: sqlite3.Connection, user: User, cards: List[Card]) -> None:
+    """
+        Remove cards from database for user.
+    """
+    CRUD.remove_data_cards(db, user, cards)
 
 
 def generate_api_query(cards: List[Card]) -> Dict:
@@ -93,7 +100,7 @@ def get_prices(cards: List[Card]):
         data = json.dumps(data)
         url = 'https://api.scryfall.com/cards/collection'
         headers = {"Content-Type": "application/json"}
-
+        breakpoint()
         http = urllib3.PoolManager()
         try:
             response = http.request(
@@ -126,7 +133,7 @@ def get_prices(cards: List[Card]):
 
 def query_collection(db: sqlite3.Connection, user: User, **kwargs):
     limit = kwargs.get('limit', 10)
-    cards = CRUD.get_cards(db, user, limit)
+    cards = CRUD.get_cards_user(db, user, limit)
     return sql2cards(cards)
 
 
@@ -211,7 +218,7 @@ def update_collection(
     cards_to_db = [
         (user.id, card._uuid, card.amount, card.amount)
         for card in cards
-        ]
+    ]
     print(f'Loaded {CRUD.update_collection(db, cards_to_db)} cards.')
 
     return bad_uuid
@@ -261,8 +268,9 @@ def download_update() -> Path:
 
         resp.release_conn()
         file.close()
-    
+
     return filename
+
 
 def update_database(
     db: sqlite3.Connection,
@@ -280,10 +288,10 @@ def update_database(
     os.rename(
         old_filename,
         os.path.join(
-            old_filename.parent, 
+            old_filename.parent,
             f"backup{datetime.datetime.now().strftime('%m-%d_%H-%M-%S')}.sqlite"
-            )
         )
+    )
     CRUD.close_db_connection(db)
     # Change Name of new database file to default
     os.rename(new_filename, old_filename)

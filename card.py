@@ -27,7 +27,7 @@ class Card:
         return f"<{self.__class__.__name__}({', '.join(items)})>"
 
     @classmethod
-    def make_table(self, title: str = 'Collection', price: bool = True) -> Table:
+    def make_table(self, title: str = 'Collection', price: bool = True, request: bool = True) -> Table:
         table = Table(title=title, box=box.MINIMAL_DOUBLE_HEAD)
         table.add_column("Index", justify='left', style='white')
         table.add_column("Card", justify='left', style='cyan')
@@ -35,10 +35,11 @@ class Card:
         table.add_column("Set (abv)", justify='left', style='bright_cyan')
         table.add_column("Type", justify='left', style='magenta')
         table.add_column("Rarity", justify='left', style='cyan')
-        table.add_column("Amount", justify='left', style='bright_cyan')
+        table.add_column("Amount", justify='left', style='white')
         if price:
             table.add_column("Price", justify='left', style='magenta')
             table.add_column("Foil Price", justify='left', style='bright_cyan')
-            table.add_column("Total", justify='left', style='cyan')
+        if request:
+            table.add_column("Amount on Hand", justify='left', style='magenta')
 
         return table

@@ -142,7 +142,8 @@ def get_cards(
     FROM user2card x
     JOIN cards c ON c.uuid = x.card_uuid
     WHERE x.user_id = {} AND
-    c.name LIKE \'{}\';
+    c.name LIKE \'{}\' AND
+    x.amount > 0;
     """
 
     try:
@@ -150,6 +151,35 @@ def get_cards(
             query_sql = query
         else:
             query_sql = query_sql.format(user.id, search)
+        with db:
+            curr = db.execute(query_sql)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        traceback.print_exc()
+        return []
+
+    return curr.fetchall()
+
+
+def get_cards_user(
+    db: sqlite3.Connection,
+    user: User,
+    limit: int = 10,
+) -> List:
+    """
+        Query dadtabase for user's cards.
+    """
+    query_sql = """
+    SELECT c.name, c.rarity, c.type, c.setCode, c.colors,
+    x.amount, x.card_uuid, c.scryfallId
+    FROM user2card x
+    JOIN cards c ON c.uuid = x.card_uuid
+    WHERE x.user_id = {}
+    LIMIT {};
+    """
+
+    try:
+        query_sql = query_sql.format(user.id, limit)
         with db:
             curr = db.execute(query_sql)
     except Exception as e:
@@ -202,9 +232,31 @@ def update_collection(db: sqlite3.Connection, updates: List[Tuple]) -> int:
 # Delete Functions
 # Delete database from user
 # Delete card from user
+# update user2card
+# set amount =  case when amount > 0 then (amount - 1) else 0 end
+# where card_uuid = "ba9c72e5-95b2-5ae1-bbfb-a9b8cbf087cc"
 
+
+def remove_data_cards(db: sqlite3.Connection, user: User, cards: List[Card]) -> None:
+    """
+        Remove List of cards from user's database table
+    """
+    for card in cards:
+        query = f"""
+        update user2card
+        set amount = case when amount > 0 then (amount - {card.amount}) else 0 end
+        where card_uuid = "{card._uuid}" and user_id = {user.id}
+        """
+        try:
+            with db:
+                db.execute(query)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            traceback.print_exc()
 
 # Transfer function
+
+
 def update_new_database(db: sqlite3.Connection, old_db: Path):
     """
         Update the old tables into the new tables.

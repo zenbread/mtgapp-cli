@@ -34,13 +34,13 @@ class MTGA(cmd.Cmd):
         table = Card.make_table(title=title, price=price)
         for card in cards:
             table.add_row(
-            str(index + 1),
-            card.name, utils.get_color(card),
-            card.set, card.type, card.rarity,
-            f'{card.amount}'
+                str(index + 1),
+                card.name, utils.get_color(card),
+                card.set, card.type, card.rarity,
+                f'{card.amount}'
             )
             index += 1
-        
+
         return table
 
     def do_add(self, args):
@@ -74,7 +74,7 @@ class MTGA(cmd.Cmd):
         search_cards = []
         for match in re.finditer(r'([0-9]+)\s(.*)', clip):
             print(
-                f"\n[green]Looking for [blue]{match.group(2)}[/blue]...[/green]", # noqa
+                f"\n[green]Looking for [blue]{match.group(2)}[/blue]...[/green]",  # noqa
                 end=""
             )
             card_name = match.group(2).replace("'", "''").rstrip()
@@ -88,23 +88,35 @@ class MTGA(cmd.Cmd):
                 print(" [red]None[/red]", end="")
                 continue
             temp_table = self.fill_table(cards, "Found these:")
-            if temp_table.row_count > 1:
+            if temp_table.row_count >= 1:
                 while True:
                     print(temp_table)
                     try:
-                        choice = int(input("Which is the correct card? [Index Number | 0 to skip]> "))
-                        if choice == 0:
+                        if temp_table.row_count == 1:
+                            choice = 1
+                        else:
+                            choice = int(
+                                input(
+                                    "Which is the correct card? [Index Number or 0 to skip]> "
+                                )
+                            )
+                        if choice <= 0:
                             break
-                        search_cards.append(cards[choice - 1])
+                        card = cards[choice - 1]
+                        amount = int(match.group(1))
+                        if amount <= 0:
+                            break
+                        elif amount > card.amount:
+                            print(f'Currently only have {card.amount}.')
+                            amount = card.amout
+                        card.amount = amount
+                        search_cards.append(card)
                         break
                     except (IndexError, ValueError):
                         self.console.log("Index out of range.")
                         continue
-            else:
-                search_cards.append(cards[0])
-            
-        return search_cards
 
+        return search_cards
 
     def do_search(self, args):
         """Usage:  search clip\n\tsearch <title>"""
@@ -126,39 +138,77 @@ class MTGA(cmd.Cmd):
         else:
             search_cards = utils.search(self.db_conn, self.user, args)
             table = self.fill_table(search_cards, "Search Results")
-            if table.row_count:
-                while True:
-                    print(table)
-                    choice = input("Add to hand? [y/N]> ")
-                    if choice.lower() in ['', 'n']:
-                        break
-                    elif choice.lower() == 'y':
-                        index = 1
-                        if table.row_count > 1:
-                            try:
-                                index = int(input("Which one to hand? [Index Number]> "))
-                                self.cards_in_hand.append(search_cards[index - 1])
-                                break
-                            except (IndexError, ValueError):
-                                self.console.log("Index out of range.")
-                                continue
-                        self.cards_in_hand.append(search_cards[index - 1])
+            if table.row_count < 1:
+                return
+            while True:
+                print(table)
+                choice = input("Add to hand? [y/N]> ")
+                if choice.lower() in ['', 'n']:
                     break
+                elif choice.lower() == 'y':
+                    try:
+                        index = int(
+                            input(
+                                'Which one to hand? [Index Number or 0 to skip]:> ')
+                        )
+                        if index <= 0:
+                            break
+                        card = search_cards[index - 1]
+                        amount = int(
+                            input(f'How many out of {card.amount}?:> ')
+                        )
+                        if amount <= 0:
+                            break
+                        elif amount > card.amount:
+                            continue
+                        card.amount = amount
+                        self.cards_in_hand.append(card)
+                        break
+                    except (IndexError, ValueError):
+                        self.console.log('Index out of range.')
+                        continue
 
     def do_cih(self, args):
+        if not self.cards_in_hand:
+            print("[yellow]No cards in hand currently.[/]")
+            return
         if not args or args == 'print':
-            if self.cards_in_hand:
-                table = Card.make_table(title='Cards in Hand', price=False)
-                for index, card in enumerate(self.cards_in_hand):
-                    table.add_row(
-                        str(index + 1),
-                        card.name, utils.get_color(card),
-                        card.set, card.type, card.rarity,
-                        f'{card.amount}'
-                    )
-                print(table)
+            table = Card.make_table(title='Cards in Hand', price=False)
+            for index, card in enumerate(self.cards_in_hand):
+                table.add_row(
+                    str(index + 1),
+                    card.name, utils.get_color(card),
+                    card.set, card.type, card.rarity,
+                    f'{card.amount}'
+                )
+            print(table)
+        elif args == 'prices':
+            utils.get_prices(self.cards_in_hand)
+            table = Card.make_table(price=True)
+            full_total = 0.0
+            for index, card in enumerate(self.cards_in_hand):
+                total = card.amount * (
+                    card.price if card.price > 0 else card.foil_price
+                )
+                full_total += total
+                table.add_row(
+                    str(index + 1),
+                    card.name, utils.get_color(card),
+                    card.set, card.type, card.rarity,
+                    f'{card.amount}', f'${card.price:.2f}',
+                    f'${card.foil_price:.2f}', f'${total:.2f}',
+                )
+            print(table)
+            print(f"Total Card Amount: {full_total:.2f}")
+        elif args == 'remove':
+            choice = input("Hand or Database? [H or D]?:> ")
+            if choice.lower() == 'd':
+                utils.remove_cards(self.db_conn, self.user, self.cards_in_hand)
+                self.cards_in_hand = []
+            elif choice.lower() == 'h':
+                self.cards_in_hand = []
             else:
-                print("[yellow]No cards in hand currently.[/]")
+                self.console.log(f'Invalid input "{choice}"')
 
     def do_prices(self, args):
         """Usage:  print\n\tprint limit=<num>"""
@@ -233,15 +283,15 @@ class MTGA(cmd.Cmd):
         except ConnectionError as e:
             self.console.log(f"{e}. Check your connection settings.")
         self.db_conn = utils.update_database(
-            self.db_conn, 
+            self.db_conn,
             self.options.database,
             filename,
-            )
+        )
 
     def do_exit(self, args):
         CRUD.close_db_connection(self.db_conn)
         return True
-    
+
     def do_quit(self, args):
         CRUD.close_db_connection(self.db_conn)
         return True
@@ -271,8 +321,8 @@ class MTGA(cmd.Cmd):
                 user_input = input(f'Enter Username:\n{MTGA.prompt}')
         except (EOFError, KeyboardInterrupt):
             return None
-        username = users.get(user_input)
-        return User(user_input, username)
+        username_id = users.get(user_input.lower())
+        return User(user_input.lower(), username_id)
 
     def user_shell(self):
         """
@@ -314,7 +364,7 @@ class MTGA(cmd.Cmd):
         self.console.log(
             f'Welcome {self.user.username.capitalize()}!\n'
             f'User Database: {self.options.database}'
-            )
+        )
 
         # Get login for user and update user information in the app
         self.user.id = CRUD.get_user_id(self.db_conn, self.user)
@@ -329,5 +379,3 @@ if __name__ == "__main__":
         MTGA().cmdloop()
     except KeyboardInterrupt:
         raise SystemExit("\nExiting MTGApp...")
-
-
