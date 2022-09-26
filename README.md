@@ -52,11 +52,14 @@ Use tcgplayer app to scan cards. On the app you can press the three dots, ..., t
 Will load cards and then update the list.
 
 ### Search
-You can search for cards by typing in the names (only names right now) and you can look for cards on your copy/paste clipboard. <br>
-`shell::> search name:<card name> or any other text comparison's from MTG Arena` OR <br>
+You can search for cards by typing in the names (only names right now) and you can look for cards on your copy/paste clipboard. See image below. <br>
+`shell::> search name:<card name>` OR <br>
 `shell::> search clip` <br>
+![Arena Search Options](Advanced-Search-Terms.webp)
+
 Format for clip:
 ```
+Example:
 2 Card name to search
 1 Smothering Tithe
 ```
